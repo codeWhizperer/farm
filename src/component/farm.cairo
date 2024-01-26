@@ -1,32 +1,5 @@
 use starknet::{ContractAddress, get_caller_address};
 
-
-#[starknet::interface]
-trait IGeneralPoolInitialiazable<TContractState> {
-    fn initialize(
-        ref self: TContractState,
-        _stakedToken: ContractAddress,
-        _rewardToken: ContractAddress,
-        _rewardPerBlock: u256,
-        _startBlock: u256,
-        _bonusEndBlock: u256,
-        _poolLimitPerUser: u256,
-        _admin: ContractAddress
-    );
-    fn deposit(ref self: TContractState, _amount: u256);
-    fn withdraw(ref self: TContractState, _amount: u256);
-    fn emergencyWithdraw(ref self: TContractState);
-    fn emergencyRewardWithdraw(ref self: TContractState, _amount: u256);
-    fn recoverWrongToken(
-        ref self: TContractState, _tokenAddress: ContractAddress, _tokenAmount: u256
-    );
-    fn stopReward(ref self: TContractState);
-    fn updateRewardPerBlock(ref self: TContractState, _rewardPerBlock: u256);
-    fn updateStartAndEndBlock(ref self: TContractState, _startBlock: u256, _bonusEndBlock: u256);
-    fn pendingReward(self: @TContractState, _user: ContractAddress) -> u256;
-}
-
-
 #[starknet::contract]
 mod GeneralPoolInitializable {
     use core::traits::Into;
