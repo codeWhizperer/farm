@@ -45,7 +45,7 @@ mod Factory {
     // * @param _poolLimitPerUser: pool limit per user in stakedToken (if any, else 0)
     // * @param _admin: admin address with ownership
     // * @return address of new smart chef contract
-
+    #[external(v0)]
     fn deployPool(
         ref self: ContractState,
         implementation_hash: felt252,
@@ -58,7 +58,6 @@ mod Factory {
         _admin: ContractAddress,
         salt: felt252
     ) {
-        self.ownable.assert_only_owner();
         assert(
             IERC20Dispatcher { contract_address: _stakedToken }.total_supply() >= 0,
             'supply must be greater than 0'
@@ -68,20 +67,8 @@ mod Factory {
             'supply must be greater than 0'
         );
         assert(_stakedToken != _rewardToken, 'Tokens must be be different');
-
-        let mut constructor_calldata: Array<felt252> = array![
-            _stakedToken.into(),
-            _rewardToken.into(),
-            _rewardPerBlock.low.into(),
-            _rewardPerBlock.high.into(),
-            _startBlock.low.into(),
-            _startBlock.high.into(),
-            _bonusEndBlock.low.into(),
-            _bonusEndBlock.high.into(),
-            _poolLimitPerUser.low.into(),
-            _poolLimitPerUser.high.into(),
-            _admin.into()
-        ];
+        let caller: ContractAddress = get_caller_address();
+        let mut constructor_calldata = array![caller.into()];
         let class_hash: ClassHash = implementation_hash.try_into().unwrap();
         let result = deploy_syscall(class_hash, salt, constructor_calldata.span(), true);
         let (account_address, _) = result.unwrap_syscall();
@@ -96,7 +83,7 @@ mod Factory {
                 _poolLimitPerUser,
                 _admin
             );
-            self.emit(NewWakandaPoolContract{poolAddress:account_address});
+        self.emit(NewWakandaPoolContract { poolAddress: account_address });
     }
 }
 

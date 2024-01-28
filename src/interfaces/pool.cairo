@@ -21,4 +21,5 @@ trait IpoolFarm<TState> {
     fn updateRewardPerBlock(ref self: TState, _rewardPerBlock: u256);
     fn updateStartAndEndBlock(ref self: TState, _startBlock: u256, _bonusEndBlock: u256);
     fn pendingReward(ref self: TState, _address: ContractAddress) -> u256;
+    fn initialize_status(self:@TState) -> bool;
 }

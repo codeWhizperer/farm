@@ -23,6 +23,7 @@ use core::integer::upcast;
 // deploy token
 const recipient_staked: felt252 = 123;
 const recipient_reward: felt252 = 124;
+const caller_farm_pool: felt252 = 125;
 fn setup() -> (ContractAddress, ContractAddress) {
     let recipient_stakedToken: ContractAddress = recipient_staked.try_into().unwrap();
     let recipient_rewardToken: ContractAddress = recipient_reward.try_into().unwrap();
@@ -51,31 +52,33 @@ fn setup() -> (ContractAddress, ContractAddress) {
 
 // setup for factory:
 
-fn deploy_contract(){
+fn deploy_contract() {
     let (staked_token_address, reward_token_address) = setup();
-
+let blocknumber:u256 = get_block_number().into() + 1;
+let bonusBlockEnd:u256 = get_block_number().into() + 201; 
     let caller = makeAddress('caller');
     let admin = makeAddress('admin');
     let pool_class_hash: ClassHash = declare('GeneralPoolInitializable')
         .class_hash
         .try_into()
         .unwrap();
-    let block_number: u256 = get_block_number().into() + 1;
-    let amount:felt252 = 10000;
-    let _bonusEndBlock: u256 = get_block_number().into() + 1;
-    
-    // let mut pool_constructor_calldata = array![staked_token_address, reward_token_address, amount.into(), block_number.into(), _bonusEndBlock.into(), 0, admin, 1000];
-    // let pool = deploy_syscall(pool_class_hash, 100000, pool_constructor_calldata.span(), true);
-    // let (pool_address, _) = pool.unwrap_syscall();
 
-    // let pool_factory_dispatcher = IpoolFarmDispatcher { contract_address: pool_address }
-    //     .initialize(
-    //         staked_token_address, reward_token_address, 100, block_number, _bonusEndBlock, 0, admin
-    //     );
-    // pool_address
+    let mut pool_constructor_calldata = array![caller.try_into().unwrap().into()];
+    let pool = deploy_syscall(pool_class_hash, 100000, pool_constructor_calldata.span(), true);
+    let (pool_address, _) = pool.unwrap_syscall();
+    //initialze pool
+    IpoolFarmDispatcher{contract_address:pool_address}.initialize(staked_token_address, reward_token_address,10000,block_number, bonusBlockEnd, 0, admin.into(), 10000);
+
 }
 
+// let block_number: u256 = get_block_number().into() + 1;
+// let amount:felt252 = 10000;
+// let _bonusEndBlock: u256 = get_block_number().into() + 1;
 
+#[test]
+fn test_initialize(){
+    
+}
 
 #[test]
 fn test_staked_token_name() {

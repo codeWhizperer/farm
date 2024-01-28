@@ -384,7 +384,13 @@ mod GeneralPoolInitializable {
                 / precision_factor;
             return U256Sub::sub(user_reward_debt_cal, user.rewardDebt);
         }
+
+      
     }
+
+      fn initialize_status(self:@ContractState) -> bool{
+            return self.isInitialized.read();
+        }
 
     ////internal functions
     #[generate_trait]
