@@ -292,7 +292,7 @@ mod GeneralPoolInitializable {
     //* @dev Only callable by owner
     fn stopReward(ref self: ContractState) {
         self.ownable.assert_only_owner();
-        let blocknumber: u256 = upcast(get_block_number());
+        let blocknumber: u256 = get_block_number().into();
         self.bonusEndBlock.write(blocknumber);
     }
 
@@ -326,7 +326,7 @@ mod GeneralPoolInitializable {
 
     fn updateRewardPerBlock(ref self: ContractState, _rewardPerBlock: u256) {
         self.ownable.assert_only_owner();
-        let blocknumber: u256 = upcast(get_block_number());
+        let blocknumber: u256 = get_block_number().into();
         let startBlock = self.startBlock.read();
         assert(blocknumber < startBlock, Errors::POOL_HAS_STARTED);
         self.emit(NewRewardPerBlock { rewardPerBlock: _rewardPerBlock });
@@ -339,7 +339,7 @@ mod GeneralPoolInitializable {
 
     fn updateStartAndEndBlock(ref self: ContractState, _startBlock: u256, _bonusEndBlock: u256) {
         self.ownable.assert_only_owner();
-        let blocknumber: u256 = upcast(get_block_number());
+        let blocknumber: u256 = get_block_number().into();
         let startBlock = self.startBlock.read();
         assert(blocknumber < startBlock, Errors::POOL_HAS_STARTED);
         assert(_startBlock < _bonusEndBlock, Errors::NEW_START_BLOCK_MUST_BE_LOWER);
@@ -361,7 +361,7 @@ mod GeneralPoolInitializable {
         let stakedToken = self.stakedToken.read();
         let address_this = get_contract_address();
         let lastRewardPerBlock = self.lastRewardBlock.read();
-        let blocknumber: u256 = upcast(get_block_number());
+        let blocknumber: u256 = get_block_number().into();
         let rewardPerBlock = self.rewardPerBlock.read();
         let accTokenPerShare = self.accTokenPerShare.read();
         let precision_factor = self.PRECISION_FACTOR.read();
@@ -373,7 +373,7 @@ mod GeneralPoolInitializable {
             let multiplier = self._getMultiplier(lastRewardPerBlock, blocknumber);
             let tkdReward = U256Mul::mul(multiplier, rewardPerBlock);
             let adjustedTokenPerShareCal = U256Mul::mul(tkdReward, precision_factor)
-                / stakedTokenSupply;
+                / stakedTokenSupply.into();
             let adjustedTokenPerShare = U256Add::add(accTokenPerShare, adjustedTokenPerShareCal);
             let user_reward_cal = U256Mul::mul(user.amount, adjustedTokenPerShare)
                 / precision_factor;
@@ -405,7 +405,7 @@ mod GeneralPoolInitializable {
 
         //@notice Update reward varibles of the given pool to be up-to-date
         fn _updatePool(ref self: ContractState) {
-            let blocknumber: u256 = upcast(get_block_number());
+            let blocknumber: u256 = get_block_number().into();
             let lastRewardBlock = self.lastRewardBlock.read();
             if (blocknumber <= lastRewardBlock) {
                 return;
@@ -425,7 +425,7 @@ mod GeneralPoolInitializable {
             let precisionFactor = self.PRECISION_FACTOR.read();
             let tkd_mul_precion_factor = U256Mul::mul(tkdReward, precisionFactor);
             let tkd_div_staked_token_supply = U256Div::div(
-                tkd_mul_precion_factor, stakedTokenSupply
+                tkd_mul_precion_factor, stakedTokenSupply.into()
             );
             let accTokenPerFinalValue = U256Add::add(
                 tkd_mul_precion_factor, tkd_div_staked_token_supply

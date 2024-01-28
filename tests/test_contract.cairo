@@ -1,73 +1,127 @@
-// use farm::component::farm::IsimpleDispatcherTrait;
-// use starknet::ContractAddress;
+use farm::interfaces::pool::IpoolFarmDispatcherTrait;
+use core::result::ResultTrait;
+use farm::interfaces::erc20::IERC20DispatcherTrait;
+use core::option::OptionTrait;
+use farm::component::farm::GeneralPoolInitializable;
+use farm::component::poolfactory::Factory;
+use farm::component::token::TOKENERC20;
+use farm::interfaces::erc20::IERC20Dispatcher;
+use farm::interfaces::pool::IpoolFarmDispatcher;
+use starknet::{
+    ContractAddress, get_caller_address, syscalls::call_contract_syscall, class_hash::ClassHash,
+    class_hash::Felt252TryIntoClassHash, syscalls::deploy_syscall, SyscallResultTrait
+};
+use core::traits::Into;
+use core::traits::TryInto;
+use snforge_std::{
+    get_class_hash, ContractClassTrait, declare, start_prank, stop_prank, CheatTarget
+};
+use debug::PrintTrait;
+use starknet::info::get_block_number;
+use core::integer::upcast;
 
-// use snforge_std::{declare, ContractClassTrait};
+// deploy token
+const recipient_staked: felt252 = 123;
+const recipient_reward: felt252 = 124;
+fn setup() -> (ContractAddress, ContractAddress) {
+    let recipient_stakedToken: ContractAddress = recipient_staked.try_into().unwrap();
+    let recipient_rewardToken: ContractAddress = recipient_reward.try_into().unwrap();
 
-// // use farm::IHelloStarknetSafeDispatcher;
-// // use farm::IHelloStarknetSafeDispatcherTrait;
-// use farm::component::farm::Simple;
-// use farm::component::farm::IsimpleDispatcher;
+    // let recipient_rewardToken = makeAddress('rewardToken');
+    let token_class_hash: ClassHash = declare('TOKENERC20').class_hash.try_into().unwrap();
+    let mut staked_constructor_calldata = array![
+        recipient_stakedToken.into(), 'StakedToken', 18, 10000, 'STK'
+    ];
+    let mut reward_constructor_calldata = array![
+        recipient_rewardToken.into(), 'RewardToken', 18, 10000, 'RTK'
+    ];
 
-// fn deploy_contract(name: felt252) -> ContractAddress {
-//     let contract = declare(name);
-//     contract.deploy(@ArrayTrait::new()).unwrap()
-// }
+    let stakedToken = deploy_syscall(
+        token_class_hash, 1000, staked_constructor_calldata.span(), true
+    );
+    let rewardToken = deploy_syscall(
+        token_class_hash, 1000, reward_constructor_calldata.span(), true
+    );
+
+    let (staked_token_address, _) = stakedToken.unwrap_syscall();
+    let (reward_token_address, _) = rewardToken.unwrap_syscall();
+
+    return (staked_token_address, reward_token_address);
+}
+
+// setup for factory:
+
+fn deploy_contract(){
+    let (staked_token_address, reward_token_address) = setup();
+
+    let caller = makeAddress('caller');
+    let admin = makeAddress('admin');
+    let pool_class_hash: ClassHash = declare('GeneralPoolInitializable')
+        .class_hash
+        .try_into()
+        .unwrap();
+    let block_number: u256 = get_block_number().into() + 1;
+    let amount:felt252 = 10000;
+    let _bonusEndBlock: u256 = get_block_number().into() + 1;
+    
+    // let mut pool_constructor_calldata = array![staked_token_address, reward_token_address, amount.into(), block_number.into(), _bonusEndBlock.into(), 0, admin, 1000];
+    // let pool = deploy_syscall(pool_class_hash, 100000, pool_constructor_calldata.span(), true);
+    // let (pool_address, _) = pool.unwrap_syscall();
+
+    // let pool_factory_dispatcher = IpoolFarmDispatcher { contract_address: pool_address }
+    //     .initialize(
+    //         staked_token_address, reward_token_address, 100, block_number, _bonusEndBlock, 0, admin
+    //     );
+    // pool_address
+}
+
+
+
+#[test]
+fn test_staked_token_name() {
+    let (staked_token_address, reward_token_address) = setup();
+    let staked_dispatcher = IERC20Dispatcher { contract_address: staked_token_address }.name();
+    let reward_dispatcher = IERC20Dispatcher { contract_address: reward_token_address }.name();
+    assert(staked_dispatcher == 'StakedToken', 'invalid_name');
+    assert(reward_dispatcher == 'RewardToken', 'invalid_name');
+}
+
+#[test]
+fn test_token_holder_balance() {
+    let (staked_token_address, reward_token_address) = setup();
+    let staked_dispatcher = IERC20Dispatcher { contract_address: staked_token_address }
+        .balance_of(recipient_staked.try_into().unwrap());
+    let reward_dispatcher = IERC20Dispatcher { contract_address: reward_token_address }
+        .balance_of(recipient_reward.try_into().unwrap());
+    assert(staked_dispatcher == 10000, 'invalid_balance');
+    assert(reward_dispatcher == 10000, 'invalid_balance');
+}
+
 
 // #[test]
-// fn test_add(){
-//     let contract_address = deploy_contract('Simple');
+// fn test_deposit() {
+//     let contract_address = deploy_contract();
+//     let (staked_token_address, _) = setup();
 
-//     let dispatcher = IsimpleDispatcher{contract_address};
-//     let a = 56;
-//     let b = 22;
+//     // start_prank(CheatTarget::One(contract_address), recipient_staked.try_into().unwrap());
+//     let dispatcher = IpoolFarmDispatcher { contract_address }.deposit(100);
+//     let token_staked_balance = IERC20Dispatcher { contract_address: staked_token_address }
+//         .balance_of(recipient_staked.try_into().unwrap());
+//     assert(token_staked_balance == 9900, 'invalid_balance');
+//     // stop_prank(CheatTarget::One(contract_address))
+// }
+// setup
 
-//     let result = dispatcher.add_num(a,b);
-
-//     assert(result == 78 , 'invalid answer');
+// fn setup() -> ContractAddress {
+//     let caller = makeAddress('caller');
+//     let admin = makeAddress('admin');
+//     let user1 = makeAddress('user1');
+//     let uer2 = makeAddress('user2');
+//     let pool_contract_hash = declare('GeneralPoolInitializable').class_hash;
+//     let contract = declare('Factory');
+//     let calldata = array![];
 // }
 
-// #[test]
-// fn test_sub(){
-//     let contract_address = deploy_contract('Simple');
-
-//     let dispatcher = IsimpleDispatcher{contract_address};
-//     let a = 56;
-//     let b = 22;
-
-//     let result = dispatcher.sub_num(a,b);
-
-//     assert(result == 34 , 'invalid answer');
-// }
-
-// // #[test]
-// // fn test_increase_balance() {
-// //     let contract_address = deploy_contract('HelloStarknet');
-
-// //     let safe_dispatcher = IHelloStarknetSafeDispatcher { contract_address };
-
-// //     let balance_before = safe_dispatcher.get_balance().unwrap();
-// //     assert(balance_before == 0, 'Invalid balance');
-
-// //     safe_dispatcher.increase_balance(42).unwrap();
-
-// //     let balance_after = safe_dispatcher.get_balance().unwrap();
-// //     assert(balance_after == 42, 'Invalid balance');
-// // }
-
-// // #[test]
-// // fn test_cannot_increase_balance_with_zero_value() {
-// //     let contract_address = deploy_contract('HelloStarknet');
-
-// //     let safe_dispatcher = IHelloStarknetSafeDispatcher { contract_address };
-
-// //     let balance_before = safe_dispatcher.get_balance().unwrap();
-// //     assert(balance_before == 0, 'Invalid balance');
-
-// //     match safe_dispatcher.increase_balance(0) {
-// //         Result::Ok(_) => panic_with_felt252('Should have panicked'),
-// //         Result::Err(panic_data) => {
-// //             assert(*panic_data.at(0) == 'Amount cannot be 0', *panic_data.at(0));
-// //         }
-// //     };
-// // }
-
+fn makeAddress(name: felt252) -> ContractAddress {
+    name.try_into().unwrap()
+}
