@@ -1,3 +1,4 @@
+use farm::interfaces::factory::IFactoryDispatcherTrait;
 use farm::interfaces::pool::IpoolFarmDispatcherTrait;
 use core::result::ResultTrait;
 use farm::interfaces::erc20::IERC20DispatcherTrait;
@@ -7,10 +8,13 @@ use farm::component::poolfactory::Factory;
 use farm::component::token::TOKENERC20;
 use farm::interfaces::erc20::IERC20Dispatcher;
 use farm::interfaces::pool::IpoolFarmDispatcher;
+use farm::interfaces::factory::IFactoryDispatcher;
 use starknet::{
     ContractAddress, get_caller_address, syscalls::call_contract_syscall, class_hash::ClassHash,
-    class_hash::Felt252TryIntoClassHash, syscalls::deploy_syscall, SyscallResultTrait
+    class_hash::Felt252TryIntoClassHash, syscalls::deploy_syscall, SyscallResultTrait,
+    class_hash_to_felt252
 };
+use integer::u256_from_felt252;
 use core::traits::Into;
 use core::traits::TryInto;
 use snforge_std::{
@@ -24,6 +28,8 @@ use core::integer::upcast;
 const recipient_staked: felt252 = 123;
 const recipient_reward: felt252 = 124;
 const caller_farm_pool: felt252 = 125;
+
+
 fn setup() -> (ContractAddress, ContractAddress) {
     let recipient_stakedToken: ContractAddress = recipient_staked.try_into().unwrap();
     let recipient_rewardToken: ContractAddress = recipient_reward.try_into().unwrap();
@@ -50,35 +56,18 @@ fn setup() -> (ContractAddress, ContractAddress) {
     return (staked_token_address, reward_token_address);
 }
 
-// setup for factory:
+// setup_factory
 
-fn deploy_contract() {
-    let (staked_token_address, reward_token_address) = setup();
-let blocknumber:u256 = get_block_number().into() + 1;
-let bonusBlockEnd:u256 = get_block_number().into() + 201; 
-    let caller = makeAddress('caller');
-    let admin = makeAddress('admin');
-    let pool_class_hash: ClassHash = declare('GeneralPoolInitializable')
-        .class_hash
-        .try_into()
-        .unwrap();
-
-    let mut pool_constructor_calldata = array![caller.try_into().unwrap().into()];
-    let pool = deploy_syscall(pool_class_hash, 100000, pool_constructor_calldata.span(), true);
-    let (pool_address, _) = pool.unwrap_syscall();
-    //initialze pool
-    IpoolFarmDispatcher{contract_address:pool_address}.initialize(staked_token_address, reward_token_address,10000,block_number, bonusBlockEnd, 0, admin.into(), 10000);
-
+fn deploy_contract_factory() -> (ContractAddress, ContractAddress) {
+    // declare pool contract and extract class hash
+    let factory_contract = declare('Factory');
+    let pool_class_hash = declare('GeneralPoolInitializable').class_hash.try_into().unwrap();
+    let factory_address = factory_contract.deploy(@array![]).unwrap();
+    let dispatcher_pool_factory_address = IFactoryDispatcher { contract_address: factory_address }
+        .deployPool(class_hash_to_felt252(pool_class_hash), 54663);
+    return (dispatcher_pool_factory_address, factory_address);
 }
 
-// let block_number: u256 = get_block_number().into() + 1;
-// let amount:felt252 = 10000;
-// let _bonusEndBlock: u256 = get_block_number().into() + 1;
-
-#[test]
-fn test_initialize(){
-    
-}
 
 #[test]
 fn test_staked_token_name() {
@@ -101,29 +90,42 @@ fn test_token_holder_balance() {
 }
 
 
-// #[test]
-// fn test_deposit() {
-//     let contract_address = deploy_contract();
-//     let (staked_token_address, _) = setup();
+#[test]
+fn test_initialize_status_and_deployer_before_initialization() {
+    let (dispatcher_pool_factory_address, factory_address) = deploy_contract_factory();
+    let msg_sender: ContractAddress = makeAddress('caller');
 
-//     // start_prank(CheatTarget::One(contract_address), recipient_staked.try_into().unwrap());
-//     let dispatcher = IpoolFarmDispatcher { contract_address }.deposit(100);
-//     let token_staked_balance = IERC20Dispatcher { contract_address: staked_token_address }
-//         .balance_of(recipient_staked.try_into().unwrap());
-//     assert(token_staked_balance == 9900, 'invalid_balance');
-//     // stop_prank(CheatTarget::One(contract_address))
-// }
-// setup
+    start_prank(CheatTarget::One(dispatcher_pool_factory_address), factory_address);
+    let dispatcher = IpoolFarmDispatcher { contract_address: dispatcher_pool_factory_address };
+    let status = dispatcher.initialize_status();
+    let caller = dispatcher.getCaller();
+    // assert(contract_factory_address == caller, 'invalid_caller');
+    assert(status == false, 'initialized');
+    stop_prank(CheatTarget::One(dispatcher_pool_factory_address))
+}
 
-// fn setup() -> ContractAddress {
-//     let caller = makeAddress('caller');
-//     let admin = makeAddress('admin');
-//     let user1 = makeAddress('user1');
-//     let uer2 = makeAddress('user2');
-//     let pool_contract_hash = declare('GeneralPoolInitializable').class_hash;
-//     let contract = declare('Factory');
-//     let calldata = array![];
-// }
+#[test]
+fn test_initiliaze_pool() {
+    let block_number: u256 = get_block_number().into() + 1;
+    let endblock: u256 = get_block_number().into() + 201;
+    let admin: ContractAddress = makeAddress('admin');
+    let (staked_token_address, reward_token_address) = setup();
+    let (dispatcher_pool_factory_address, factory_address) = deploy_contract_factory();
+    start_prank(CheatTarget::One(dispatcher_pool_factory_address), factory_address);
+    let dispatcher = IpoolFarmDispatcher { contract_address: dispatcher_pool_factory_address };
+    dispatcher.initialize(
+            staked_token_address,
+            reward_token_address,
+            10000,
+            block_number,
+            endblock,
+            0,
+            admin
+        );
+    let status = dispatcher.initialize_status();
+    assert(status == true, 'not_initialized status');
+    stop_prank(CheatTarget::One(dispatcher_pool_factory_address))
+}
 
 fn makeAddress(name: felt252) -> ContractAddress {
     name.try_into().unwrap()
