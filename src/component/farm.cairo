@@ -15,6 +15,7 @@ mod GeneralPoolInitializable {
     use core::integer::{U256Sub, upcast, U256Mul, U256Div, U256Add};
     use farm::utils::helper::pow;
     use starknet::info::{get_block_number, get_contract_address};
+    use farm::interfaces::pool::IpoolFarm;
 
     component!(path: OwnableComponent, storage: ownable, event: OwnershipTransferred);
 
@@ -122,6 +123,9 @@ mod GeneralPoolInitializable {
         self.GeneralPoolFactory.write(caller);
     }
 
+#[external(v0)]  
+impl IpoolImpl of IpoolFarm<ContractState>{
+
     //*
     //  * @notice Initialize the contract
     //  * @param _stakedToken: staked token address
@@ -142,6 +146,15 @@ mod GeneralPoolInitializable {
         _poolLimitedPerUser: u256,
         _admin: ContractAddress
     ) {
+        assert(
+            IERC20Dispatcher { contract_address: _stakedToken }.total_supply() >= 0,
+            'supply must be greater than 0'
+        );
+        assert(
+            IERC20Dispatcher { contract_address: _rewardToken }.total_supply() >= 0,
+            'supply must be greater than 0'
+        );
+        assert(_stakedToken != _rewardToken, 'Tokens must be be different');
         let caller = get_caller_address();
         let isInitialized = self.isInitialized.read();
         assert(!isInitialized, Errors::STATUS);
@@ -384,15 +397,19 @@ mod GeneralPoolInitializable {
                 / precision_factor;
             return U256Sub::sub(user_reward_debt_cal, user.rewardDebt);
         }
-
-      
     }
 
-      fn initialize_status(self:@ContractState) -> bool{
-            return self.isInitialized.read();
-        }
+    fn initialize_status(self: @ContractState) -> bool {
+        return self.isInitialized.read();
+    }
 
-    ////internal functions
+
+    fn getCaller(self: @ContractState) -> ContractAddress {
+        return self.GeneralPoolFactory.read();
+    }
+}
+
+  ////internal functions
     #[generate_trait]
     impl InternalFunctions of InternalFunctionTrait {
         //@notice Returns reward multiplier over the given _from to _to block
@@ -440,5 +457,5 @@ mod GeneralPoolInitializable {
             self.lastRewardBlock.write(blocknumber);
         }
     }
-}
 
+}

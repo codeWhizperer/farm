@@ -47,43 +47,27 @@ mod Factory {
     // * @return address of new smart chef contract
     #[external(v0)]
     fn deployPool(
-        ref self: ContractState,
-        implementation_hash: felt252,
-        _stakedToken: ContractAddress,
-        _rewardToken: ContractAddress,
-        _rewardPerBlock: u256,
-        _startBlock: u256,
-        _bonusEndBlock: u256,
-        _poolLimitPerUser: u256,
-        _admin: ContractAddress,
-        salt: felt252
-    ) {
-        assert(
-            IERC20Dispatcher { contract_address: _stakedToken }.total_supply() >= 0,
-            'supply must be greater than 0'
-        );
-        assert(
-            IERC20Dispatcher { contract_address: _rewardToken }.total_supply() >= 0,
-            'supply must be greater than 0'
-        );
-        assert(_stakedToken != _rewardToken, 'Tokens must be be different');
-        let caller: ContractAddress = get_caller_address();
-        let mut constructor_calldata = array![caller.into()];
+        ref self: ContractState, implementation_hash: felt252, salt: felt252
+    ) -> ContractAddress {
+        // let caller: ContractAddress = get_caller_address();
+        // let mut constructor_calldata = array![caller.into()];
+        let mut calldata = array![];
         let class_hash: ClassHash = implementation_hash.try_into().unwrap();
-        let result = deploy_syscall(class_hash, salt, constructor_calldata.span(), true);
+        let result = deploy_syscall(class_hash, salt, calldata.span(), true);
         let (account_address, _) = result.unwrap_syscall();
-
-        IpoolFarmDispatcher { contract_address: account_address }
-            .initialize(
-                _stakedToken,
-                _rewardToken,
-                _rewardPerBlock,
-                _startBlock,
-                _bonusEndBlock,
-                _poolLimitPerUser,
-                _admin
-            );
         self.emit(NewWakandaPoolContract { poolAddress: account_address });
+
+        return account_address;
+    // IpoolFarmDispatcher { contract_address: account_address }
+    //     .initialize(
+    //         _stakedToken,
+    //         _rewardToken,
+    //         _rewardPerBlock,
+    //         _startBlock,
+    //         _bonusEndBlock,
+    //         _poolLimitPerUser,
+    //         _admin
+    //     );
     }
 }
 
